@@ -1,0 +1,8 @@
+{
+  "note": "For decoded uint8 PNG images, normalized L2 < 1/255 means exact pixel equality. These groups are therefore exact duplicate pixel groups.",
+  "image_dir": "/cpfs01/projects-HDD/cfff-139269c29e92_HDD/gsb_24110190023/wu/AIOptics/data/4f_random_20k_sigma_0_5_k_5_0401_Pmode/train/pat",
+  "num_groups": 0,
+  "num_images_in_groups": 0,
+  "groups": [],
+  "errors": []
+}

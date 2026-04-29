@@ -1,0 +1,40 @@
+# data
+data/
+mmfdata/
+datasets/data/
+MNIST/
+objectgrayscale/
+objects/
+simulation/
+simulation_75/
+simulation_100/
+simulation_auto/
+
+# checkpoint
+checkpoints/
+
+# debug
+debug/
+
+# results
+newton_results/
+two_stage_results/
+
+# log
+preds/
+vis/
+wandb/
+
+# other
+backup.zip
+log.txt
+matrix_18000.npy
+slm_input_11111.bmp
+*.png
+wandb-*
+
+
+
+
+
+
