@@ -1,3 +1,9 @@
+# OpticsViT
+A repository to train modern vit for surrogating optics system
+
+## How to RUN
+Refer to the following script for multiple runs
+```
 #!/usr/bin/env bash
 # Run the 4f simulation with the specified parameters.
 
@@ -57,3 +63,4 @@ python parallel_inference_newton.py \
     --input-channels "${INPUT_CHANNELS}" \
     --input-mode "${INPUT_MODE}" \
     --input-scale "${INPUT_SCALE}"
+```
