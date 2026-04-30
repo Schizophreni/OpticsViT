@@ -62,7 +62,7 @@ def train_one_epoch(model, dataloader, optimizer, lr_scheduler, scaler,
     running_loss = 0.0
     running_loss_inr = 0.0
     max_scale = args.pat_size / args.input_size
-    for i, (signal, pat, _, _) in enumerate(dataloader):
+    for i, (signal, pat, _) in enumerate(dataloader):
         lr_scheduler.step()
         signal, pat = signal.to(device), pat.to(device)
         
@@ -95,7 +95,7 @@ def validate(model, val_loader, device, args, wandb_writer=None):
     psnrs, ssims = [], []
     max_scale = args.pat_size / args.input_size
     with torch.no_grad():
-        for idx, (signal, pat, _, _) in tqdm(enumerate(val_loader), ncols=60, desc="Validating"):
+        for idx, (signal, pat, _) in tqdm(enumerate(val_loader), ncols=60, desc="Validating"):
             signal, pat = signal.to(device), pat.to(device)
             _, out_pred = model(signal, scale=max_scale)
             out_pred_norm = out_pred 
