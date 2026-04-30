@@ -168,8 +168,8 @@ def main(args):
     wandb_log.log_artifact(artifact)
 
     # build dataloader
-    train_dataset = OpticsDataset(train=True, root_dir=args.root_dir)
-    val_dataset = OpticsDataset(train=False, root_dir=args.root_dir)
+    train_dataset = OpticsDataset(train=True, args=args)
+    val_dataset = OpticsDataset(train=False, args=args)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=16)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=16)
     
