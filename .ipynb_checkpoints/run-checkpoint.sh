@@ -12,7 +12,7 @@
 
 # wu/AIOptics/data/phase_data_simulation_2pi_twophases
 # simulation 2026-03-10
-python main_stage1_simulation.py --root_dir data/4f_random_perlin_20k --batch_size 32 --lr 4e-4 --save_path checkpoints/4f_random_perlin_20k_d4144  --weight_decay 0.01 --num_epochs 400 --phase_size 50 --pat_size 100 --exp_name 4f_random_perlin_20k_d4144 # --resume_path checkpoints/4f_comb_phases_20k_l1_mean_losses/stage1/latest.pth
+python main_stage1_simulation.py --root_dir data/4f_random_perlin_20k --batch_size 32 --lr 4e-4 --save_path checkpoints/4f_random_perlin_20k_d4144_2  --weight_decay 0.01 --num_epochs 400 --phase_size 50 --pat_size 100 --exp_name 4f_random_perlin_20k_d4144 # --resume_path checkpoints/4f_comb_phases_20k_l1_mean_losses/stage1/latest.pth
 
 # 2026-3-10
 # python main_stage2_simulation.py --root_dir data/4f_twophases_2pi --batch_size 32 --lr 4e-4 --save_path checkpoints/4f_twophases_2pi_200 --num_epochs 400 --weight_decay 0.01 --phase_size 50 --pat_size 200  #  --resume_path checkpoints/inr/stage2/latest.pth --num_epochs 600

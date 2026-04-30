@@ -14,7 +14,7 @@ from PIL import Image
 
 PHASE_SIZE = 50
 PAT_SIZE = 100
-MODE = 'fibder_perlin_amp_exp_20k'
+MODE = '4f_random_sigma_0_5_k_5_20k'
 
 pearson_criterion = PearsonLoss()
 
@@ -42,9 +42,9 @@ img_crop = transforms.Compose([
 
 
 inp2pat = OpticsViTINR(image_size=PHASE_SIZE, patch_size=5, enc_depth=4, dec_depth=4, heads=8, dim_head=32, dim=256, 
-                      mlp_dim=int(256*8/3), in_channels=1, out_channels=1, act=torch.nn.Sigmoid, out_dim=384, pat_size=PAT_SIZE).cuda()
+                      mlp_dim=int(256*8/3), in_channels=2, out_channels=1, act=torch.nn.Sigmoid, out_dim=384, pat_size=PAT_SIZE).cuda()
 
-ckp = torch.load('checkpoints/fiber_perlin_amp_exp/stage1/best.pth', weights_only=False)
+ckp = torch.load('checkpoints/4f_random_20k_sigma_0_5_k_5_0421_simulation/stage1/best.pth', weights_only=False)
 inp2pat.load_state_dict(ckp)
 
 inp2pat.eval()
@@ -80,7 +80,7 @@ for idx in range(20000):
         optimizer.zero_grad()
         # phase = F.normalize(phase_param, dim=1)
         phase = torch.sigmoid(phase_param)
-        # phase = phase * torch.pi * 2
+        phase = phase * torch.pi * 2
         _, pred_img = inp2pat(phase, scale=PAT_SIZE/PHASE_SIZE) # Enforce 0-1
         
         loss = weight_l1(pred_img, img, mask) + weight_l1(pred_img, img, 1-mask) #  + ((1-mask)*pred_img).mean() # + F.mse_loss(pred_img, img)
@@ -95,7 +95,7 @@ for idx in range(20000):
     phase_param = phase_param.mean(dim=0, keepdim=True)
     # phase_pse = F.normalize(phase_param, dim=1)
     # phase_pse = torch.sigmoid(phase_param)
-    phase_pse = torch.sigmoid(phase_param) # * torch.pi * 2
+    phase_pse = torch.sigmoid(phase_param) * torch.pi * 2
 
     # phase_radi = torch.atan2(phase_pse[:,[1]], phase_pse[:,[0]]+1e-7)
     # phase_radi = torch.remainder(phase_radi, 2 * torch.pi) / (torch.pi)
