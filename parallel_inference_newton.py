@@ -44,6 +44,7 @@ def parse_args():
     parser.add_argument("--disable-amp", action="store_true")
     parser.add_argument("--input-channels", type=int, default=2, help="Number of input channels for the model (default: 2)")
     parser.add_argument("--input-mode", type=str, default="amp", choices=["amp", "phase"])
+    parser.add_argument("--input_scale", type=float, default=1.0, help="Maximum phase value for normalization (default: 1.0)")
     return parser.parse_args()
 
 
@@ -161,7 +162,7 @@ class AsyncResultSaver:
         sample_name = f"emnist_{sample_idx}"
         tv_utils.save_image(pred, self.save_pred_dir / f"{sample_name}.png")
         tv_utils.save_image(input, self.save_input_dir / f"{sample_name}.png")
-        np.save(self.save_input_dir / f"{sample_name}.npy", input[0].numpy())
+        # np.save(self.save_input_dir / f"{sample_name}.npy", input[0].numpy())
         tv_utils.save_image(img, self.save_pat_dir / f"{sample_name}.png")
 
     def close(self):
@@ -172,7 +173,7 @@ class AsyncResultSaver:
         self.executor.shutdown(wait=True)
 
 
-def optimize_batch(model, img_batch, num_steps, lr, input_size, pat_size, mask_threshold, use_amp):
+def optimize_batch(model, img_batch, num_steps, lr, input_size, pat_size, mask_threshold, use_amp, input_scale):
     batch_size = img_batch.shape[0]
     input_param = torch.nn.Parameter(
         torch.randn(batch_size, 1, input_size, input_size, device=img_batch.device)
@@ -189,7 +190,7 @@ def optimize_batch(model, img_batch, num_steps, lr, input_size, pat_size, mask_t
     for _ in range(num_steps):
         optimizer.zero_grad(set_to_none=True)
         with torch.autocast(device_type=img_batch.device.type, dtype=torch.float16, enabled=amp_enabled):
-            input = torch.sigmoid(input_param) * (2 * torch.pi)
+            input = torch.sigmoid(input_param) * input_scale
             _, pred_img = model(input, scale=pat_size / input_size)
             loss = weight_l1(pred_img, img_batch, mask) + weight_l1(pred_img, img_batch, 1 - mask)
 
@@ -204,7 +205,7 @@ def optimize_batch(model, img_batch, num_steps, lr, input_size, pat_size, mask_t
 
     with torch.no_grad():
         input_radi = torch.sigmoid(input_param)
-        input_pse = input_radi * (2 * torch.pi)
+        input_pse = input_radi * input_scale
         _, pat_recon = model(input_pse, scale=pat_size / input_size)
 
     return input_radi.detach(), pat_recon.detach(), last_loss
@@ -259,6 +260,7 @@ def main():
                 pat_size=args.pat_size,
                 mask_threshold=args.mask_threshold,
                 use_amp=use_amp,
+                input_scale=args.input_scale,
             )
 
             img_cpu = img_batch.detach().cpu()
