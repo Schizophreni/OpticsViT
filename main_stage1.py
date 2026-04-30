@@ -162,9 +162,9 @@ def main(args):
     # use wandb to log files
     artifact = wandb.Artifact(name="code", type='code')
     artifact.add_file("layers/vit_inr.py")
-    artifact.add_file("datasets/simulation_dataset.py")
-    artifact.add_file("main_stage1_simulation.py")
-    artifact.add_file("run.sh")
+    artifact.add_file("datasets/dataset.py")
+    artifact.add_file("main_stage1.py")
+    artifact.add_file("scripts/run_4f_simulation.sh")
     wandb_log.log_artifact(artifact)
 
     # build dataloader
