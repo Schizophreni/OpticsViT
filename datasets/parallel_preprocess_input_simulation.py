@@ -52,6 +52,7 @@ def process_single_image(img_path, raw_input_folder, save_input_folder, save_tar
 
 def get_args():
     parser = argparse.ArgumentParser(description="Optics ViT Training Script")
+    parser.add_argument("--raw_target_folder", type=str, help="folder to save target data")
     parser.add_argument("--raw_input_folder", type=str, help="raw output folder")
     parser.add_argument("--save_folder", type=str, help="folder to save processed data")
     parser.add_argument("--input-mode", type=str, default="phase", choices=["phase", "amp"], help="type of input data to process")
@@ -59,7 +60,7 @@ def get_args():
 
 def main():
     args = get_args()
-    amp_folder = args.raw_input_folder
+    amp_folder = args.raw_target_folder
     files = glob.glob(os.path.join(amp_folder, "*.npy"))
 
     train_split_idx = len(files) - 2000  # 2000 for validation

@@ -33,12 +33,10 @@ class OpticsDataset(Data.Dataset):
         print("=== Dataset size ({}): {}".format("train" if train else "eval", len(self.inputs)))
         self.EMNIST = torchvision.datasets.EMNIST(root='data', download=True, split='letters')
         self.transform = torchvision.transforms.Compose([
-            torchvision.transforms.Resize((100, 100)),
+            torchvision.transforms.Resize((args.pat_size, args.pat_size)),
             torchvision.transforms.ToTensor()
         ])
-        self.crop = torchvision.transforms.Compose([
-            torchvision.transforms.CenterCrop((100, 100))
-        ])
+        self.crop = torchvision.transforms.CenterCrop((args.pat_size, args.pat_size))
     
     def __len__(self):
         return len(self.inputs)

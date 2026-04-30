@@ -28,6 +28,15 @@ wandb/
 # script
 scripts/
 
+# import
+datasets/__pycache__/
+
+# claude
+.omc/
+
+# vscode
+.vscode/
+
 # other
 backup.zip
 log.txt

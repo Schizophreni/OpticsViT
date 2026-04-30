@@ -4,11 +4,22 @@ Use torch mixed precision training to accelerate the training process
 Ref: https://www.cnblogs.com/jimchen1218/p/14315008.html
 """
 import os
+import sys
+from pathlib import Path
 import torch
 import torch.optim as optim
 from torch.cuda.amp import GradScaler
 import argparse
-from .datasets.dataset import OpticsDataset
+PROJECT_ROOT = Path(__file__).resolve().parent
+DATASETS_DIR = PROJECT_ROOT / "datasets"
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(DATASETS_DIR) not in sys.path:
+    sys.path.insert(0, str(DATASETS_DIR))
+try:
+    from .datasets.dataset import OpticsDataset
+except ImportError:
+    from dataset import OpticsDataset
 # from datasets.Amp_dataset import OpticsDataset
 from utils import psnr, ssim  # metrics
 from tqdm import tqdm
@@ -39,6 +50,9 @@ def get_args():
     parser.add_argument("--input_size", type=int, default=224, help="resize size for images and patterns")
     parser.add_argument("--pat_size", type=int, default=224, help="resize size for images and patterns")
     parser.add_argument("--exp_name", type=str, default="vit_inr")
+    parser.add_argument("--input_scale", type=str, default="2_pi", help="scale factor for input images")
+    parser.add_argument("--clip_speckle", type=float, default=1.0, help="clip value for speckle patterns")
+    parser.add_argument("--input_channels", type=int, default=2, help="number of input channels for the model")
     args = parser.parse_args()
     return args
 
@@ -161,7 +175,7 @@ def main(args):
     
     # build model
     model = OpticsViTINR(image_size=args.input_size, patch_size=5, enc_depth=4, dec_depth=4, heads=8, dim_head=32, dim=256, 
-                      mlp_dim=int(256*8/3), in_channels=2, out_channels=1, act=torch.nn.Sigmoid, out_dim=384, use_learnable_pos=False, num_reg=0, drop_path_rate=0.1, input_pad=0, pat_size=args.pat_size)
+                      mlp_dim=int(256*8/3), in_channels=args.input_channels, out_channels=1, act=torch.nn.Sigmoid, out_dim=384, use_learnable_pos=False, num_reg=0, drop_path_rate=0.1, input_pad=0, pat_size=args.pat_size)
     model = model.to(device)
     # print(model)
     # build optimizer
@@ -202,4 +216,10 @@ def main(args):
 
 if __name__ == "__main__":
     args = get_args()
+    # parse input scale
+    if "pi" in args.input_scale.lower():
+        s = args.input_scale.lower().split("_")[0]
+        args.input_scale = float(s)*torch.pi
+    else:
+        args.input_scale = float(args.input_scale)
     main(args)

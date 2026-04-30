@@ -44,7 +44,7 @@ def parse_args():
     parser.add_argument("--disable-amp", action="store_true")
     parser.add_argument("--input-channels", type=int, default=2, help="Number of input channels for the model (default: 2)")
     parser.add_argument("--input-mode", type=str, default="amp", choices=["amp", "phase"])
-    parser.add_argument("--input_scale", type=float, default=1.0, help="Maximum phase value for normalization (default: 1.0)")
+    parser.add_argument("--input-scale", type=str, default="2_pi", help="Maximum phase value for normalization (default: 1.0)")
     return parser.parse_args()
 
 
@@ -214,6 +214,12 @@ def optimize_batch(model, img_batch, num_steps, lr, input_size, pat_size, mask_t
 def main():
     args = parse_args()
     use_amp = args.use_amp or (torch.cuda.is_available() and not args.disable_amp)
+    # parse input scale
+    if "pi" in args.input_scale.lower():
+        s = args.input_scale.lower().split("_")[0]
+        args.input_scale = float(s)*torch.pi
+    else:
+        args.input_scale = float(args.input_scale)
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
