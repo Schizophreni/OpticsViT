@@ -17,7 +17,7 @@ class OpticsDataset(Data.Dataset):
         img_size: cropped img size
         """
         assert args is not None, "Arguments cannot be None"
-        root_dir = args.data_dir
+        root_dir = args.root_dir
         self.clip_speckle = args.clip_speckle # clip speckle amplitude
         self.input_scale = args.input_scale # scale input value (e.g., phase 2pi)
         if train:
