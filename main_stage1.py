@@ -6,27 +6,24 @@ Ref: https://www.cnblogs.com/jimchen1218/p/14315008.html
 import os
 import torch
 import torch.optim as optim
-from torch.cuda.amp import autocast, GradScaler
+from torch.cuda.amp import GradScaler
 import argparse
-# from datasets.Phase_dataset import OpticsDataset
-from datasets.Amp_dataset import OpticsDataset
+from .datasets.dataset import OpticsDataset
+# from datasets.Amp_dataset import OpticsDataset
 from utils import psnr, ssim  # metrics
-from tensorboardX import SummaryWriter
 from tqdm import tqdm
 import numpy as np
 import torchvision
-# from layers.vit import OpticsViT
-from utils import mask_loss
 from scheduler import WarmupCosineLR
-# from layers.mlp import MLP
 from layers.vit_inr import OpticsViTINR
 import torch.nn.functional as F
-import pdb
-import shutil
+import wandb
+from utils import SSIM
 
-
+    
 pixel_criterion = torch.nn.L1Loss()  # pixel criterion
 l2_criterion = torch.nn.MSELoss()
+ssim_criterion = SSIM()
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -39,88 +36,100 @@ def get_args():
     parser.add_argument("--save_path", type=str, default="./checkpoints", help="path to save the model")
     parser.add_argument("--resume_path", type=str, default="", help="path to load the model")
     parser.add_argument("--print_interval", type=int, default=10, help="print interval")
-    parser.add_argument("--phase_size", type=int, default=224, help="resize size for images and patterns")
+    parser.add_argument("--input_size", type=int, default=224, help="resize size for images and patterns")
     parser.add_argument("--pat_size", type=int, default=224, help="resize size for images and patterns")
+    parser.add_argument("--exp_name", type=str, default="vit_inr")
     args = parser.parse_args()
     return args
 
 def train_one_epoch(model, dataloader, optimizer, lr_scheduler, scaler,
-                    device, epoch, print_interval=10, writer=None, log_file=None):
+                    device, epoch, print_interval=10, wandb_writer=None, args=None):
     model.train()
     running_loss = 0.0
     running_loss_inr = 0.0
+    max_scale = args.pat_size / args.input_size
     for i, (signal, pat, _, _) in enumerate(dataloader):
         lr_scheduler.step()
-        # print(signal.min(), signal.max())
         signal, pat = signal.to(device), pat.to(device)
-        # print(signal.shape, pat.shape)
-        # print(signal.shape, pat.shape, signal.max(), signal.mean(), pat.max(), pat.min(), pat.mean())
-        # scale = np.random.rand() + 1 # [1, 2]
-        # resize_size = int(scale * signal.shape[-1])
-        # pat_resize = F.interpolate(pat, (resize_size, resize_size), mode='bilinear').clamp(0, 1)
-        # pat_0 = F.interpolate(pat, (signal.shape[-1], signal.shape[-1]), mode='bilinear').clamp(0, 1)
-        # print(pat.shape)
         
         optimizer.zero_grad()
         with torch.amp.autocast("cuda"):
-            _, out_pred = model(signal, scale=3.0)
-        # out_0, out_inr = model(signal, scale=scale)
-
-            loss = F.l1_loss(out_pred, pat)
-            # loss_inr = l2_criterion(out_inr, pat_resize) + l2_criterion(out_0, pat_0)
-            
-            # print(out_pred.min().item(), out_pred.max().item(), pat.min(), pat.max().item())
-            
+            _, out_pred = model(signal, scale=max_scale)
+            mean_loss = F.l1_loss(out_pred.mean(dim=[1,2,3]), pat.mean(dim=[1,2,3]))
+            loss = F.l1_loss(out_pred, pat) + mean_loss
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
-        # loss.backward()
-        # optimizer.step()
         running_loss += loss.item()
-        # running_loss_inr += loss_inr.item()
-        # pdb.set_trace()
-        if i % print_interval == 0:
+        running_loss_inr += mean_loss.item()
+        if (1+i) % print_interval == 0:
             print(f"[epoch: {epoch + 1}, iter: {i + 1:5d}] loss: {running_loss / print_interval:.5f}, loss_inr: {running_loss_inr / print_interval:.5f}")
-            writer.add_scalar("train loss", running_loss / print_interval, epoch * len(dataloader) + i)
-            writer.add_scalar("train loss inr", running_loss_inr / print_interval, epoch * len(dataloader) + i)
-            with open(log_file, "a") as f:
-                f.write(f"[epoch: {epoch + 1}, iter: {i + 1:5d}] loss: {running_loss / print_interval:.5f}\n, loss_inr: {running_loss_inr / print_interval:.5f}")
+            wandb_writer.log(
+                {
+                    "epoch": epoch + 1,
+                    "iter": i + 1,
+                    "train/loss": running_loss / print_interval,
+                    "train/loss_inr": running_loss_inr / print_interval,
+                }
+            )
             running_loss = 0.0
             running_loss_inr = 0.0
 
 @torch.no_grad()
-def validate(model, val_loader, device):
+def validate(model, val_loader, device, args, wandb_writer=None):
     model.eval()
     psnrs, ssims = [], []
+    max_scale = args.pat_size / args.input_size
     with torch.no_grad():
-        for idx, (signal, pat, pat_name, _) in tqdm(enumerate(val_loader), ncols=60, desc="Validating"):
+        for idx, (signal, pat, _, _) in tqdm(enumerate(val_loader), ncols=60, desc="Validating"):
             signal, pat = signal.to(device), pat.to(device)
-            print(signal.min(), signal.max())
-            _, out_pred = model(signal, scale=3.0)
-            out_pred_norm = out_pred
-            # out_pred_norm = torch.sqrt(torch.square(out_pred).sum(dim=1, keepdim=True))
-            # print(l2_criterion(out_pred_norm, pat).item())
+            _, out_pred = model(signal, scale=max_scale)
+            out_pred_norm = out_pred 
             out_pred_norm.clamp_(0.0, 1.0)
-            if idx < 10:
-                # tmp = (torch.atan2(signal[[0],[1]], signal[[0],[0]]) + torch.pi)/(2*torch.pi)
-                torchvision.utils.save_image(signal.cpu(), os.path.join("preds/phase", "inp_{}.png".format(idx+1)))
-                # torchvision.utils.save_image(signal[[0],[1],:,:].cpu(), os.path.join("preds", "imag_{}.png".format(idx+1)))
-                torchvision.utils.save_image(out_pred_norm[[0],...].cpu(), os.path.join("preds/phase", "pred_{}.png".format(idx+1)))
+            # save first 8 samples for visualization
+            if idx <= 8:
+                torchvision.utils.save_image(signal[[0]].cpu()/(2*torch.pi), os.path.join("preds/phase", "inp_{}.png".format(idx+1)))
                 torchvision.utils.save_image(pat[[0],...], os.path.join("preds/phase", "gt_{}.png".format(idx+1)))
+                torchvision.utils.save_image(out_pred_norm[[0],...].cpu(), os.path.join("preds/phase", "pred_{}.png".format(idx+1)))
+            # save first four samples of the first batch for wandb visualization
+            if idx == 0:
+                tmp = signal / signal.max()
+                inputs = tmp[:4].cpu()
+                preds = out_pred[:4].cpu()
+                gts = pat[:4].cpu()
+
+                # 获取三者中最大的 H 和 W
+                max_h = max(inputs.shape[2], preds.shape[2], gts.shape[2])
+                max_w = max(inputs.shape[3], preds.shape[3], gts.shape[3])
+
+                def align_tensor(t, h, w):
+                    if t.shape[2] != h or t.shape[3] != w:
+                        return F.interpolate(t, size=(h, w), mode='nearest') # 仿真数据有时用 nearest 更好
+                    return t
+
+                inputs = align_tensor(inputs, max_h, max_w)
+                preds = align_tensor(preds, max_h, max_w)
+                gts = align_tensor(gts, max_h, max_w)
+
+                combined = torch.cat([inputs, preds, gts], dim=3)
+                grid = torchvision.utils.make_grid(combined, nrow=1, padding=2) # 纵向排列 4 个对比组
+
+                # 3. 直接 log 图像
+                wandb.log({
+                    "val/predictions_grid": wandb.Image(grid, caption="Left: Input | Middle: Pred | Right: GT")
+                })
             psnrs.append(psnr(out_pred_norm*255, pat*255).item())
     psnr_mean = np.mean(np.array(psnrs))
     return psnr_mean
 
 def load_checkpoint(model, optimizer, lr_scheduler, scaler, checkpoint_path):
     checkpoint = torch.load(checkpoint_path, weights_only=False)
-    model.load_state_dict(checkpoint['model'])
+    model.load_state_dict(checkpoint["model"])
     optimizer.load_state_dict(checkpoint["optimizer"])
     lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
     scaler.load_state_dict(checkpoint["scaler"])
     best_psnr = checkpoint["best_psnr"]
-    epoch = checkpoint['epoch']
-    # epoch, best_psnr = 0, 0
-    return epoch, best_psnr # checkpoint["epoch"], best_psnr
+    return checkpoint["epoch"], best_psnr
 
 def main(args):
     # set devices
@@ -129,39 +138,46 @@ def main(args):
     save_path = os.path.join(args.save_path, "stage1")
     if not os.path.exists(save_path):
         os.makedirs(save_path)
-    # save key files
-    shutil.copy("layers/vit_inr.py", os.path.join(save_path, "model.py"))
-    shutil.copy("datasets/Amp_dataset.py", os.path.join(save_path, "dataset.py"))
-    shutil.copy("main_stage1.py", os.path.join(save_path, "train.py"))
-    shutil.copy("run.sh", os.path.join(save_path, "run.sh"))
+    # initialize wandb
+    wandb_log = wandb.init(
+        project="AIOptics",
+        entity="wurancs-int",
+        name=args.exp_name,
+        config=args # resume="allow"
+    )
+    # use wandb to log files
+    artifact = wandb.Artifact(name="code", type='code')
+    artifact.add_file("layers/vit_inr.py")
+    artifact.add_file("datasets/simulation_dataset.py")
+    artifact.add_file("main_stage1_simulation.py")
+    artifact.add_file("run.sh")
+    wandb_log.log_artifact(artifact)
+
+    # build dataloader
+    train_dataset = OpticsDataset(train=True, root_dir=args.root_dir)
+    val_dataset = OpticsDataset(train=False, root_dir=args.root_dir)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=16)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=16)
     
-    log_file = os.path.join(save_path, "log.txt")
-    writer = SummaryWriter(os.path.join(save_path, "tensorboard"))
     # build model
-    model = OpticsViTINR(image_size=args.phase_size, patch_size=5, enc_depth=4, dec_depth=4, heads=8, dim_head=32, dim=256, 
-                      mlp_dim=int(256*8/3), in_channels=1, out_channels=1, act=torch.nn.Sigmoid, out_dim=384, use_learnable_pos=False, num_reg=0, drop_path_rate=0.1)
+    model = OpticsViTINR(image_size=args.input_size, patch_size=5, enc_depth=4, dec_depth=4, heads=8, dim_head=32, dim=256, 
+                      mlp_dim=int(256*8/3), in_channels=2, out_channels=1, act=torch.nn.Sigmoid, out_dim=384, use_learnable_pos=False, num_reg=0, drop_path_rate=0.1, input_pad=0, pat_size=args.pat_size)
     model = model.to(device)
-    print(model)
+    # print(model)
     # build optimizer
     optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    lr_scheduler = WarmupCosineLR(optimizer, warmup_iters=1500, total_iters=args.num_epochs*18000//args.batch_size)
+    lr_scheduler = WarmupCosineLR(optimizer, warmup_iters=1500, total_iters=args.num_epochs*len(train_dataset)//args.batch_size)
     scaler = GradScaler()
     # resume from checkpoint
     if os.path.exists(args.resume_path):
-        print("=== resume from: ", args.resume_path)
+        print("Resume from: ", args.resume_path)
         start_epoch, best_psnr = load_checkpoint(model, optimizer, lr_scheduler, scaler, args.resume_path)
     else:
         start_epoch, best_psnr = 0, 0.0
-    # build dataloader
-    train_dataset = OpticsDataset(train=True, root_dir=args.root_dir, input_size=args.pat_size)
-    val_dataset = OpticsDataset(train=False, root_dir=args.root_dir, input_size=args.pat_size)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=16)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=16)
     # train
     for epoch in range(start_epoch, args.num_epochs):
-        # validate(model, val_loader, device)
         train_one_epoch(model, train_loader, optimizer, lr_scheduler, scaler, device, epoch, print_interval=args.print_interval,
-                        writer=writer, log_file=log_file)
+                        wandb_writer=wandb_log, args=args)
         # save checkpoint
         torch.save({
             "epoch": epoch + 1,
@@ -172,15 +188,16 @@ def main(args):
             "best_psnr": best_psnr
         }, os.path.join(save_path, "latest.pth"))
         # validate
-        psnr_mean = validate(model, val_loader, device)
-        writer.add_scalar("val PSNR", psnr_mean, epoch + 1)
-        print(f"[{epoch + 1}] val PSNR: {psnr_mean:.3f}\n")
-        with open(log_file, "a") as f:
-            f.write(f"[{epoch + 1}] val PSNR: {psnr_mean:.3f}\n")
+        psnr_mean = validate(model, val_loader, device, args=args, wandb_writer=wandb_log)
+        wandb_log.log(
+            {
+            "epoch": epoch + 1,
+            "val/psnr": psnr_mean
+            }
+        )
         if psnr_mean > best_psnr:
             best_psnr = psnr_mean
             torch.save(model.state_dict(), os.path.join(save_path, "best.pth"))
-    writer.close()
 
 
 if __name__ == "__main__":

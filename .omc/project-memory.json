@@ -1,0 +1,74 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1777521269667,
+  "projectRoot": "/Users/wuran/Documents/projects/OpticsViT",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "__pycache__": {
+      "path": "__pycache__",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1777521269651,
+      "keyFiles": [
+        "scheduler.cpython-312.pyc",
+        "utils.cpython-312.pyc"
+      ]
+    },
+    "datasets": {
+      "path": "datasets",
+      "purpose": null,
+      "fileCount": 20,
+      "lastAccessed": 1777521269653,
+      "keyFiles": [
+        "Amp_dataset.py",
+        "Phase_dataset.py",
+        "analyze.py",
+        "back.npy",
+        "data_analysis_dashboard.html"
+      ]
+    },
+    "layers": {
+      "path": "layers",
+      "purpose": null,
+      "fileCount": 8,
+      "lastAccessed": 1777521269653,
+      "keyFiles": [
+        "mlp.py",
+        "vit.py",
+        "vit_compatable.py",
+        "vit_inr.py",
+        "vit_inr_old.py"
+      ]
+    }
+  },
+  "hotPaths": [],
+  "userDirectives": []
+}
