@@ -10,16 +10,16 @@ import torch
 import torch.optim as optim
 from torch.cuda.amp import GradScaler
 import argparse
-PROJECT_ROOT = Path(__file__).resolve().parent
-DATASETS_DIR = PROJECT_ROOT / "datasets"
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-if str(DATASETS_DIR) not in sys.path:
-    sys.path.insert(0, str(DATASETS_DIR))
-try:
-    from .datasets.dataset import OpticsDataset
-except ImportError:
-    from dataset import OpticsDataset
+# PROJECT_ROOT = Path(__file__).resolve().parent
+# DATASETS_DIR = PROJECT_ROOT / "datasets"
+# if str(PROJECT_ROOT) not in sys.path:
+#     sys.path.insert(0, str(PROJECT_ROOT))
+# if str(DATASETS_DIR) not in sys.path:
+#     sys.path.insert(0, str(DATASETS_DIR))
+# try:
+#     from .datasets.dataset import OpticsDataset
+# except ImportError:
+from datasets.dataset import OpticsDataset
 # from datasets.Amp_dataset import OpticsDataset
 from utils import psnr, ssim  # metrics
 from tqdm import tqdm
