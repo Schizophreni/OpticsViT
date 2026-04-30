@@ -3,6 +3,7 @@ A repository to train modern vit for surrogating optics system
 
 ## How to RUN
 Refer to the following script for multiple runs
+copy the following code into a `run.sh` file under the main folder, and the run it using `bash run.sh`
 ```
 #!/usr/bin/env bash
 # Run the 4f simulation with the specified parameters.
