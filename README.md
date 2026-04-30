@@ -1,9 +1,3 @@
-# OpticsViT
-A repository to train modern vit for surrogating optics system
-
-## How to RUN
-Refer to the following script for multiple runs
-```
 #!/usr/bin/env bash
 # Run the 4f simulation with the specified parameters.
 
@@ -26,6 +20,7 @@ INPUT_SIZE=50
 PAT_SIZE=100
 INPUT_CHANNELS=2
 INPUT_SCALE="2_pi"
+CLIP_SPECKLE=65535
 
 # Data preprocess
 python datasets/parallel_preprocess_input_simulation.py \
@@ -47,7 +42,7 @@ python main_stage1.py \
     --pat_size "${PAT_SIZE}" \
     --exp_name "${EXP_NAME}_round${ROUND}" \
     --input_scale "${INPUT_SCALE}" \
-    --clip_speckle 120 \
+    --clip_speckle ${CLIP_SPECKLE} \
     --input_channels "${INPUT_CHANNELS}"
 
 # Inference
@@ -62,4 +57,3 @@ python parallel_inference_newton.py \
     --input-channels "${INPUT_CHANNELS}" \
     --input-mode "${INPUT_MODE}" \
     --input-scale "${INPUT_SCALE}"
-```
