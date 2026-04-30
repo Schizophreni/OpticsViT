@@ -25,6 +25,9 @@ preds/
 vis/
 wandb/
 
+# script
+scripts/
+
 # other
 backup.zip
 log.txt
