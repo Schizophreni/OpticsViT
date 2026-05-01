@@ -62,7 +62,7 @@ def train_one_epoch(model, dataloader, optimizer, lr_scheduler, scaler,
     running_loss = 0.0
     running_loss_inr = 0.0
     max_scale = args.pat_size / args.input_size
-    for i, (signal, pat, _, _) in enumerate(dataloader):
+    for i, (signal, pat, _) in enumerate(dataloader):
         lr_scheduler.step()
         signal, pat = signal.to(device), pat.to(device)
         
@@ -95,7 +95,7 @@ def validate(model, val_loader, device, args, wandb_writer=None):
     psnrs, ssims = [], []
     max_scale = args.pat_size / args.input_size
     with torch.no_grad():
-        for idx, (signal, pat, _, _) in tqdm(enumerate(val_loader), ncols=60, desc="Validating"):
+        for idx, (signal, pat, _) in tqdm(enumerate(val_loader), ncols=60, desc="Validating"):
             signal, pat = signal.to(device), pat.to(device)
             _, out_pred = model(signal, scale=max_scale)
             out_pred_norm = out_pred 
@@ -138,12 +138,16 @@ def validate(model, val_loader, device, args, wandb_writer=None):
 
 def load_checkpoint(model, optimizer, lr_scheduler, scaler, checkpoint_path):
     checkpoint = torch.load(checkpoint_path, weights_only=False)
-    model.load_state_dict(checkpoint["model"])
-    optimizer.load_state_dict(checkpoint["optimizer"])
-    lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
-    scaler.load_state_dict(checkpoint["scaler"])
-    best_psnr = checkpoint["best_psnr"]
-    return checkpoint["epoch"], best_psnr
+    if "model" in checkpoint:
+        model.load_state_dict(checkpoint["model"])
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
+        scaler.load_state_dict(checkpoint["scaler"])
+        best_psnr = checkpoint["best_psnr"]
+        return checkpoint["epoch"], best_psnr
+    else:
+        model.load_state_dict(checkpoint)
+        return 0, 0
 
 def main(args):
     # set devices
@@ -168,8 +172,8 @@ def main(args):
     wandb_log.log_artifact(artifact)
 
     # build dataloader
-    train_dataset = OpticsDataset(train=True, root_dir=args.root_dir)
-    val_dataset = OpticsDataset(train=False, root_dir=args.root_dir)
+    train_dataset = OpticsDataset(train=True, args=args)
+    val_dataset = OpticsDataset(train=False, args=args)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=16)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=16)
     

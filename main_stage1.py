@@ -138,12 +138,16 @@ def validate(model, val_loader, device, args, wandb_writer=None):
 
 def load_checkpoint(model, optimizer, lr_scheduler, scaler, checkpoint_path):
     checkpoint = torch.load(checkpoint_path, weights_only=False)
-    model.load_state_dict(checkpoint["model"])
-    optimizer.load_state_dict(checkpoint["optimizer"])
-    lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
-    scaler.load_state_dict(checkpoint["scaler"])
-    best_psnr = checkpoint["best_psnr"]
-    return checkpoint["epoch"], best_psnr
+    if "model" in checkpoint:
+        model.load_state_dict(checkpoint["model"])
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
+        scaler.load_state_dict(checkpoint["scaler"])
+        best_psnr = checkpoint["best_psnr"]
+        return checkpoint["epoch"], best_psnr
+    else:
+        model.load_state_dict(checkpoint)
+        return 0, 0
 
 def main(args):
     # set devices
